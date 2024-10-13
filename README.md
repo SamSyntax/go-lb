@@ -101,6 +101,30 @@ forwarding to "localhost:8003"
 forwarding to "localhost:8004"
 forwarding to "localhost:8000"
 ```
+You can also use the loadbalancer to redirect traffic to external servers. Create <b>servers.json</b> in the root directory
+of the project and specify servers (add weights if you want to use Weighted Round Robin).
+```json
+[
+  {
+    "addr": "https://facebook.com",
+    "weight": 2
+  },
+  {
+    "addr": "https://twitch.tv",
+    "weight": 1
+  },
+  {
+    "addr": "https://google.com",
+    "weight": 3
+  }
+]
+```
+Then simply pass <b>-env</b> flag. It accepts "local" and "external" where "local" will start local servers
+and "external" will read the JSON file.
+
+```bash
+make build && ./lb -method wrr -env external
+```
 Customization
 Number of Servers: You can modify the number of servers spawned by changing the <b>-amount</b> flag value.
 Ports: The backend servers listen on ports 8000 and higher. You can modify the port range in the Spawner function.

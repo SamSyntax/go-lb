@@ -41,10 +41,9 @@ func NewLbServer(addr string, weight int) *LbServer {
 		os.Exit(1)
 	}
 	return &LbServer{
-		addr:  addr,
-		proxy: httputil.NewSingleHostReverseProxy(serverUrl),
-    weight: weight,
-    current: 0,
+		addr:   addr,
+		proxy:  httputil.NewSingleHostReverseProxy(serverUrl),
+		weight: weight,
 	}
 }
 
@@ -52,7 +51,7 @@ type LoadBalancer struct {
 	port            string
 	roundRobinCount int
 	servers         []LbServer
-	weidhted        bool
+	weighted        bool
 }
 
 func NewLoadBalancer(port string, servers []LbServer, weighted bool) *LoadBalancer {
@@ -60,12 +59,12 @@ func NewLoadBalancer(port string, servers []LbServer, weighted bool) *LoadBalanc
 		port:            port,
 		roundRobinCount: 0,
 		servers:         servers,
-		weidhted:        weighted,
+		weighted:        weighted,
 	}
 }
 
 func (lb *LoadBalancer) GetNextAvailableServer() LbServer {
-	if lb.weidhted {
+	if lb.weighted {
 		return lb.getWeightedServer()
 	}
 	return lb.getRoundRobinServer()
