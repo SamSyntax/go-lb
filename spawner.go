@@ -7,8 +7,8 @@ import (
 	"strconv"
 )
 
-func Server(port, name string) LbServer {
-	srv := NewLbServer("http://localhost" + port)
+func Server(port, name string, weight int) LbServer {
+	srv := NewLbServer("http://localhost"+port, weight)
 	srv.name = name
 
 	mux := http.NewServeMux()
@@ -34,10 +34,16 @@ func Server(port, name string) LbServer {
 }
 func Spawner(amt int) []LbServer {
 	servers := make([]LbServer, 0, amt)
+	weights := []int{5, 2, 3}
 	for i := 0; i < amt; i++ {
+		k := 0
+		if i > len(weights) {
+			k = 0
+		}
+		k++
 		name := fmt.Sprintf("Server %v", i)
 		port := ":" + strconv.Itoa(8000+i)
-		srv := Server(port, name)
+		srv := Server(port, name, weights[k])
 		servers = append(servers, srv)
 	}
 	return servers

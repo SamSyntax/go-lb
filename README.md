@@ -72,10 +72,10 @@ Run the code using:
 ```bash
 go build *.go -o ./lb && ./lb
 ```
-OR
+or
 
 ```bash
-make build
+make run 
 ```
 The load balancer will listen on port 7000. Open your browser or use curl to send a request to localhost:7000:
 
@@ -84,6 +84,10 @@ curl http://localhost:7000
 ```
 The request will be forwarded to one of the backend servers, and you will see a response indicating the server's port.
 
+We can also specify amount of servers and balancing method (Round Robin and Weighted Round Robin) by building program and passing flags:
+```bash
+make build && ./lb -amount 5 -method rr
+```
 Example Output
 ```bash Serving requests at localhost:7000
 Spawning server: Server 0 at localhost:8000
@@ -98,7 +102,7 @@ forwarding to "localhost:8004"
 forwarding to "localhost:8000"
 ```
 Customization
-Number of Servers: You can modify the number of servers spawned by changing the argument passed to the Spawner function in main.go.
+Number of Servers: You can modify the number of servers spawned by changing the <b>-amount</b> flag value.
 Ports: The backend servers listen on ports 8000 and higher. You can modify the port range in the Spawner function.
 Dependencies
 This project does not require any third-party dependencies. It only uses the Go standard library.

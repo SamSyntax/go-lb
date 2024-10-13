@@ -15,9 +15,11 @@ type ServerInterface interface {
 }
 
 type LbServer struct {
-	addr  string
-	proxy *httputil.ReverseProxy
-  name string
+	addr    string
+	proxy   *httputil.ReverseProxy
+	name    string
+	weight  int
+	current int
 }
 
 func (s LbServer) Address() string {
@@ -32,7 +34,7 @@ func (s LbServer) Serve(w http.ResponseWriter, r *http.Request) {
 	s.proxy.ServeHTTP(w, r)
 }
 
-func NewLbServer(addr string) *LbServer {
+func NewLbServer(addr string, weight int) *LbServer {
 	serverUrl, err := url.Parse(addr)
 	if err != nil {
 		fmt.Printf("Failed to parse url: %v\n", err)
@@ -41,6 +43,8 @@ func NewLbServer(addr string) *LbServer {
 	return &LbServer{
 		addr:  addr,
 		proxy: httputil.NewSingleHostReverseProxy(serverUrl),
+    weight: weight,
+    current: 0,
 	}
 }
 
@@ -48,17 +52,41 @@ type LoadBalancer struct {
 	port            string
 	roundRobinCount int
 	servers         []LbServer
+	weidhted        bool
 }
 
-func NewLoadBalancer(port string, servers []LbServer) *LoadBalancer {
+func NewLoadBalancer(port string, servers []LbServer, weighted bool) *LoadBalancer {
 	return &LoadBalancer{
 		port:            port,
 		roundRobinCount: 0,
 		servers:         servers,
+		weidhted:        weighted,
 	}
 }
 
 func (lb *LoadBalancer) GetNextAvailableServer() LbServer {
+	if lb.weidhted {
+		return lb.getWeightedServer()
+	}
+	return lb.getRoundRobinServer()
+}
+func (lb *LoadBalancer) getWeightedServer() LbServer {
+
+	totalServers := len(lb.servers)
+	for i := 0; i < totalServers; i++ {
+		server := &lb.servers[lb.roundRobinCount%totalServers]
+		if server.current < server.weight {
+			server.current++
+			return *server
+		}
+		server.current = 0
+		lb.roundRobinCount++
+	}
+	lb.roundRobinCount++
+	return lb.servers[lb.roundRobinCount%totalServers]
+}
+func (lb *LoadBalancer) getRoundRobinServer() LbServer {
+
 	server := lb.servers[lb.roundRobinCount%len(lb.servers)]
 	for !server.IsAlive() {
 		lb.roundRobinCount++
