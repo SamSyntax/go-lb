@@ -70,7 +70,7 @@ Clone this repository or copy the source files into your Go workspace.
 Run the code using:
 
 ```bash
-go *.go -o ./lb && ./lb
+go build *.go -o ./lb && ./lb
 ```
 OR
 
