@@ -24,6 +24,7 @@ This Go project implements a load balancer that supports two balancing methods: 
 1.**Spawn Local Servers** (5 servers, round-robin method):
 ```bash
 go run *.go -amount 5 -method rr -env local
+```
 Use External Servers from a JSON File (weighted round-robin method):
 
 ```bash
