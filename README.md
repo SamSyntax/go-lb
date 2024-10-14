@@ -21,9 +21,9 @@ This Go project implements a load balancer that supports two balancing methods: 
 
 ### Example Usage
 
-1. **Spawn Local Servers** (5 servers, round-robin method):
-   ```bash
-   go run *.go -amount 5 -method rr -env local
+1.**Spawn Local Servers** (5 servers, round-robin method):
+```bash
+go run *.go -amount 5 -method rr -env local
 Use External Servers from a JSON File (weighted round-robin method):
 
 ```bash
@@ -37,7 +37,7 @@ go run *.go -method rr -env external -path ./servers.yaml
 ### Configuration File Format
 When using the -env external flag, the load balancer will read server information from a configuration file. You can provide the file in either YAML or JSON format.
 
-# Sample YAML Configuration (servers.yaml)
+## Sample YAML Configuration (servers.yaml)
 ```yaml
 ---
 - addr: https://facebook.com
@@ -47,7 +47,7 @@ When using the -env external flag, the load balancer will read server informatio
 - addr: https://google.com
   weight: 3
 ```
-# Sample JSON Configuration (servers.json)
+## Sample JSON Configuration (servers.json)
 ```json
 [
   {
@@ -64,14 +64,14 @@ When using the -env external flag, the load balancer will read server informatio
   }
 ]
 ```
-# How It Works
-## Load Balancing Methods
+## How It Works
+### Load Balancing Methods
  Round Robin (rr): Distributes requests evenly across all available servers.
 Weighted Round Robin (wrr): Distributes requests based on the weight assigned to each server. Servers with higher weights receive more traffic.
 Local Server Spawning
 When using -env local, the program spawns a number of local servers on ports starting from 8000 (e.g., localhost:8000, localhost:8001, etc.).
 
-## External Servers
+# External Servers
 When using -env external with the -path flag, the load balancer reads external server addresses from the specified JSON or YAML file and balances requests accordingly.
 
 ## Example Output
