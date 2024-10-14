@@ -11,11 +11,13 @@ func main() {
 	nFlag := flag.Int("amount", 1234, "Enter amount of local servers to be spawned")
 	method := flag.String("method", "rr", "Load balancing method: 'rr - Round Robin | wrr - Weighted Round Robin")
 	env := flag.String("env", "local", "Specify wether local servers should be started or provide JSON file with addresses of external servers. ")
+	path := flag.String("path", "./servers.yaml", "Specify a path to servers config file. Either yaml or json. ")
+
 	flag.Parse()
-  var servers []LbServer
+	var servers []LbServer
 	switch *env {
 	case "external":
-    servers = ReadJson()
+		servers = Loader(*path)
 	case "local":
 		servers = Spawner(*nFlag)
 	}

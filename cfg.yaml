@@ -1,0 +1,7 @@
+---
+- addr: https://facebook.com
+  weight: 2
+- addr: https://twitch.tv
+  weight: 1
+- addr: https://google.com
+  weight: 3

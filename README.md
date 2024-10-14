@@ -1,108 +1,53 @@
-Go Load Balancer with Dynamic Server Spawning
-This Go project implements a simple load balancer that forwards requests to multiple backend servers. The project dynamically spawns HTTP servers and balances the incoming requests using round-robin scheduling.
+# Go Load Balancer with Configurable Algorithms and External Server Configuration
 
-Overview
-The project consists of:
+This Go project implements a load balancer that supports two balancing methods: Round Robin (`rr`) and Weighted Round Robin (`wrr`). It allows you to spawn local servers or read external server addresses from a configuration file (`.json` or `.yaml`) via a flag.
 
-A server spawner that creates multiple backend servers listening on different ports.
-A load balancer that receives incoming requests on a designated port and forwards them to one of the spawned servers using a round-robin mechanism.
-Each server responds with a message indicating the port it is serving on.
-Features
-Dynamic server spawning with a given number of servers.
-Load balancing using the round-robin technique.
-Each server runs independently and responds with a simple message.
-Basic reverse proxy functionality for forwarding requests to backend servers.
-Project Structure
-Files
-main.go: The entry point of the application that spawns servers and starts the load balancer.
-loadbalancer.go: Contains the logic for the load balancer and the backend server configurations.
-Code Explanation
-Server Spawner
-The Spawner function spawns a specified number of backend HTTP servers. Each server is assigned a unique port and name. Servers are spawned concurrently in goroutines to avoid blocking the main thread.
+## Features
 
-```go
-func Spawner(amt int) []LbServer {
-    servers := make([]LbServer, 0, amt)
-    for i := 0; i < amt; i++ {
-        name := fmt.Sprintf("Server %v", i)
-        srv := Server(":"+strconv.Itoa(8000+i), name)
-        servers = append(servers, srv)
-    }
-    return servers
-}
-```
-Server Initialization
-Each server is initialized using the Server function. It creates an HTTP server that listens on the given port and serves a simple response message.
+- **Round Robin** (`rr`) and **Weighted Round Robin** (`wrr`) algorithms for load balancing.
+- Support for **local server spawning** or **external server configuration** via `.json` or `.yaml` files.
+- Configurable via command-line flags.
 
-```go
-func Server(port, name string) LbServer {
-    srv := NewLbServer("http://localhost" + port)
-    srv.name = name
-    // Serve HTTP requests in a goroutine
-    go func() {
-        http.ListenAndServe(port, mux)
-    }()
-    return *srv
-}
-```
-Load Balancer
-The LoadBalancer struct holds a list of backend servers and distributes incoming requests among them using a round-robin algorithm.
+## Command-Line Flags
 
-```go
-func (lb *LoadBalancer) GetNextAvailableServer() LbServer {
-    server := lb.servers[lb.roundRobinCount % len(lb.servers)]
-    lb.roundRobinCount++
-    return server
-}
-```
-The load balancer listens on a specified port (e.g., 7000), and forwards requests to the next available backend server.
+- `-amount`: Number of local servers to spawn (used only with `-env local`). Default is `1234`.
+- `-method`: Load balancing method. Choose between:
+  - `rr`: Round Robin.
+  - `wrr`: Weighted Round Robin.
+- `-env`: Environment setting. Choose between:
+  - `local`: Spawns the specified amount of local servers.
+  - `external`: Reads server addresses from an external file (provided via `-path` flag).
+- `-path`: Specifies the path to the external `.json` or `.yaml` configuration file (used with `-env external`).
 
-```go
-func (lb *LoadBalancer) ServeProxy(w http.ResponseWriter, r *http.Request) {
-    targetServer := lb.GetNextAvailableServer()
-    fmt.Printf("forwarding to %q\n", targetServer.Address())
-    targetServer.Serve(w, r)
-}
-```
-Running the Code
-Clone this repository or copy the source files into your Go workspace.
+### Example Usage
 
-Run the code using:
+1. **Spawn Local Servers** (5 servers, round-robin method):
+   ```bash
+   go run *.go -amount 5 -method rr -env local
+Use External Servers from a JSON File (weighted round-robin method):
 
 ```bash
-go build *.go -o ./lb && ./lb
+go run *.go -method wrr -env external -path ./servers.json
 ```
-or
+Use External Servers from a YAML File (round-robin method):
 
 ```bash
-make run 
+go run *.go -method rr -env external -path ./servers.yaml
 ```
-The load balancer will listen on port 7000. Open your browser or use curl to send a request to localhost:7000:
+### Configuration File Format
+When using the -env external flag, the load balancer will read server information from a configuration file. You can provide the file in either YAML or JSON format.
 
-```bash
-curl http://localhost:7000
+# Sample YAML Configuration (servers.yaml)
+```yaml
+---
+- addr: https://facebook.com
+  weight: 2
+- addr: https://framed-designs.com
+  weight: 1
+- addr: https://google.com
+  weight: 3
 ```
-The request will be forwarded to one of the backend servers, and you will see a response indicating the server's port.
-
-We can also specify amount of servers and balancing method (Round Robin and Weighted Round Robin) by building program and passing flags:
-```bash
-make build && ./lb -amount 5 -method rr
-```
-Example Output
-```bash Serving requests at localhost:7000
-Spawning server: Server 0 at localhost:8000
-Spawning server: Server 1 at localhost:8001
-Spawning server: Server 2 at localhost:8002
-Spawning server: Server 3 at localhost:8003
-Spawning server: Server 4 at localhost:8004
-forwarding to "localhost:8001"
-forwarding to "localhost:8002"
-forwarding to "localhost:8003"
-forwarding to "localhost:8004"
-forwarding to "localhost:8000"
-```
-You can also use the loadbalancer to redirect traffic to external servers. Create <b>servers.json</b> in the root directory
-of the project and specify servers (add weights if you want to use Weighted Round Robin).
+# Sample JSON Configuration (servers.json)
 ```json
 [
   {
@@ -119,17 +64,34 @@ of the project and specify servers (add weights if you want to use Weighted Roun
   }
 ]
 ```
-Then simply pass <b>-env</b> flag. It accepts "local" and "external" where "local" will start local servers
-and "external" will read the JSON file.
+# How It Works
+## Load Balancing Methods
+ Round Robin (rr): Distributes requests evenly across all available servers.
+Weighted Round Robin (wrr): Distributes requests based on the weight assigned to each server. Servers with higher weights receive more traffic.
+Local Server Spawning
+When using -env local, the program spawns a number of local servers on ports starting from 8000 (e.g., localhost:8000, localhost:8001, etc.).
+
+## External Servers
+When using -env external with the -path flag, the load balancer reads external server addresses from the specified JSON or YAML file and balances requests accordingly.
+
+## Example Output
+Example output when running with 3 local servers:
 
 ```bash
-make build && ./lb -method wrr -env external
+serving requests at localhost:7000
+forwarding to "localhost:8000"
+forwarding to "localhost:8001"
+forwarding to "localhost:8002"
 ```
-Customization
-Number of Servers: You can modify the number of servers spawned by changing the <b>-amount</b> flag value.
-Ports: The backend servers listen on ports 8000 and higher. You can modify the port range in the Spawner function.
-Dependencies
-This project does not require any third-party dependencies. It only uses the Go standard library.
+Example output when using an external JSON configuration:
 
-License
-This project is licensed under the MIT License.
+```bash
+serving requests at localhost:7000
+forwarding to "https://facebook.com"
+forwarding to "https://twitch.tv"
+forwarding to "https://google.com"
+```
+
+# License
+This project is open-source and available under the MIT License.
+
