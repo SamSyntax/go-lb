@@ -1,3 +1,5 @@
 /server
 lb
 /bin
+application.log
+local.yaml
