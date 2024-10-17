@@ -43,7 +43,7 @@ When using the -env external flag, the load balancer will read server informatio
 ---
 - addr: https://facebook.com
   weight: 2
-- addr: https://framed-designs.com
+- addr: https://twitch.tv
   weight: 1
 - addr: https://google.com
   weight: 3
@@ -91,6 +91,18 @@ serving requests at localhost:7000
 forwarding to "https://facebook.com"
 forwarding to "https://twitch.tv"
 forwarding to "https://google.com"
+```
+
+## Port flag
+We can pass <b>-srv-port</b> flag to specify port for local servers and <b>-port</b> flag to specify port for load balancer
+```bash
+./lb -port 8000 -lb-port 7000
+```
+
+## Health check
+We are able to run health check on external servers listed in the config file
+```bash
+./lb -healthCheck -path ./servers.yaml
 ```
 
 # License
