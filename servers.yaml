@@ -1,7 +1,7 @@
 ---
 - addr: https://facebook.com
   weight: 2
-- addr: https://twitch.tv
+- addr: https://twitch22t.tv
   weight: 1
 - addr: https://google.com
   weight: 3

@@ -58,7 +58,7 @@ func ReadJson(path string) []LbServer {
 	for k, s := range servers {
 		lbServer := NewLbServer(s.Addr, s.Weight)
 		lbServer.name = strconv.Itoa(k)
-		res = append(res, *lbServer)
+    res = append(res, *lbServer)
 	}
 
 	return res
@@ -84,7 +84,7 @@ func ReadYaml(path string) []LbServer {
 	for k, s := range servers {
 		lbServer := NewLbServer(s.Addr, s.Weight)
 		lbServer.name = strconv.Itoa(k)
-		res = append(res, *lbServer)
+    res = append(res, *lbServer)
 	}
 
 	return res

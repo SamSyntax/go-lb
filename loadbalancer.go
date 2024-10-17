@@ -27,6 +27,16 @@ func (s LbServer) Address() string {
 }
 
 func (s LbServer) IsAlive() bool {
+	res, err := http.Get(s.addr)
+	if err != nil {
+		fmt.Printf("Server %s - addr: %s is currently offline\n", s.name, s.addr)
+		return false
+	}
+	if res.StatusCode != http.StatusOK {
+		fmt.Printf("Server %s - addr: %s is currently offline\n", s.name, s.addr)
+		return false
+	}
+	fmt.Printf("Server %s - addr: %s is online\n", s.name, s.addr)
 	return true
 }
 
@@ -74,7 +84,7 @@ func (lb *LoadBalancer) getWeightedServer() LbServer {
 	totalServers := len(lb.servers)
 	for i := 0; i < totalServers; i++ {
 		server := &lb.servers[lb.roundRobinCount%totalServers]
-		if server.current < server.weight {
+		if server.current < server.weight && server.IsAlive() {
 			server.current++
 			return *server
 		}

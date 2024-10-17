@@ -1,7 +1,7 @@
 [
   {
     "addr": "https://facebook.com",
-    "weight": 2
+    "weight": 2,
   },
   {
     "addr": "https://twitch.tv",

@@ -32,7 +32,7 @@ func Server(port, name string, weight int) LbServer {
 	return *srv
 
 }
-func Spawner(amt int) []LbServer {
+func Spawner(amt, port int) []LbServer {
 	servers := make([]LbServer, 0, amt)
 	weights := []int{5, 2, 3}
 	for i := 0; i < amt; i++ {
@@ -41,10 +41,15 @@ func Spawner(amt int) []LbServer {
 			k = 0
 		}
 		k++
-		name := fmt.Sprintf("Server %v", i)
-		port := ":" + strconv.Itoa(8000+i)
+		name := fmt.Sprintf("Server %v", i+1)
+		port := ":" + strconv.Itoa(port+i)
 		srv := Server(port, name, weights[k])
-		servers = append(servers, srv)
+		if srv.IsAlive() {
+			servers = append(servers, srv)
+		} else {
+			continue
+		}
+
 	}
 	return servers
 }
