@@ -5,9 +5,11 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+
+	log "github.com/sirupsen/logrus"
 )
 
-func Server(port, name string, weight int) LbServer {
+func Server(port, name string, weight int) *LbServer {
 	srv := NewLbServer("http://localhost"+port, weight)
 	srv.name = name
 
@@ -15,12 +17,12 @@ func Server(port, name string, weight int) LbServer {
 
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		inf := fmt.Sprintf("Serving on port %s", port)
-		fmt.Println(inf)
+		log.Info(inf)
 		io.WriteString(w, inf)
 	}
 
 	mux.HandleFunc("/", handler)
-	fmt.Printf("Spawning server: %s at %s\n", srv.name, srv.addr)
+	log.Infof("Spawning server: %s at %s\n", srv.name, srv.addr)
 
 	go func() {
 		err := http.ListenAndServe(port, mux)
@@ -29,11 +31,11 @@ func Server(port, name string, weight int) LbServer {
 		}
 	}()
 
-	return *srv
+	return srv
 
 }
-func Spawner(amt, port int) []LbServer {
-	servers := make([]LbServer, 0, amt)
+func Spawner(amt, port int) []*LbServer {
+	servers := make([]*LbServer, 0, amt)
 	weights := []int{5, 2, 3}
 	for i := 0; i < amt; i++ {
 		k := 0

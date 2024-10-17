@@ -1,11 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"sync"
+	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type ServerInterface interface {
@@ -20,51 +23,61 @@ type LbServer struct {
 	name    string
 	weight  int
 	current int
+	mu      sync.Mutex
+	alive   bool
 }
 
-func (s LbServer) Address() string {
+func (s *LbServer) Address() string {
 	return s.addr
 }
 
-func (s LbServer) IsAlive() bool {
-	res, err := http.Get(s.addr)
+func (s *LbServer) IsAlive() bool {
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+	res, err := client.Get(s.addr)
 	if err != nil {
-		fmt.Printf("Server %s - addr: %s is currently offline\n", s.name, s.addr)
+		log.Warnf("Server %s - addr: %s is currently offline\n", s.name, s.addr)
+		s.alive = false
 		return false
 	}
 	if res.StatusCode != http.StatusOK {
-		fmt.Printf("Server %s - addr: %s is currently offline\n", s.name, s.addr)
+		log.Warnf("Server %s - addr: %s is currently offline\n", s.name, s.addr)
+		s.alive = false
 		return false
 	}
-	fmt.Printf("Server %s - addr: %s is online\n", s.name, s.addr)
+	s.alive = true
+	log.Infof("Server %s - addr: %s is online\n", s.name, s.addr)
 	return true
 }
 
-func (s LbServer) Serve(w http.ResponseWriter, r *http.Request) {
+func (s *LbServer) Serve(w http.ResponseWriter, r *http.Request) {
 	s.proxy.ServeHTTP(w, r)
 }
 
 func NewLbServer(addr string, weight int) *LbServer {
 	serverUrl, err := url.Parse(addr)
 	if err != nil {
-		fmt.Printf("Failed to parse url: %v\n", err)
+		log.Panicf("Failed to parse url: %v\n", err)
 		os.Exit(1)
 	}
 	return &LbServer{
 		addr:   addr,
 		proxy:  httputil.NewSingleHostReverseProxy(serverUrl),
 		weight: weight,
+		alive:  true,
 	}
 }
 
 type LoadBalancer struct {
 	port            string
 	roundRobinCount int
-	servers         []LbServer
+	servers         []*LbServer
 	weighted        bool
+	mu              sync.Mutex
 }
 
-func NewLoadBalancer(port string, servers []LbServer, weighted bool) *LoadBalancer {
+func NewLoadBalancer(port string, servers []*LbServer, weighted bool) *LoadBalancer {
 	return &LoadBalancer{
 		port:            port,
 		roundRobinCount: 0,
@@ -74,19 +87,23 @@ func NewLoadBalancer(port string, servers []LbServer, weighted bool) *LoadBalanc
 }
 
 func (lb *LoadBalancer) GetNextAvailableServer() LbServer {
+	lb.mu.Lock()
+	defer lb.mu.Unlock()
 	if lb.weighted {
-		return lb.getWeightedServer()
+		return *lb.getWeightedServer()
 	}
-	return lb.getRoundRobinServer()
+	return *lb.getRoundRobinServer()
 }
-func (lb *LoadBalancer) getWeightedServer() LbServer {
+func (lb *LoadBalancer) getWeightedServer() *LbServer {
 
 	totalServers := len(lb.servers)
 	for i := 0; i < totalServers; i++ {
-		server := &lb.servers[lb.roundRobinCount%totalServers]
-		if server.current < server.weight && server.IsAlive() {
+		server := lb.servers[lb.roundRobinCount%totalServers]
+		if server.current < server.weight && server.alive {
+			server.mu.Lock()
 			server.current++
-			return *server
+			server.mu.Unlock()
+			return server
 		}
 		server.current = 0
 		lb.roundRobinCount++
@@ -94,20 +111,34 @@ func (lb *LoadBalancer) getWeightedServer() LbServer {
 	lb.roundRobinCount++
 	return lb.servers[lb.roundRobinCount%totalServers]
 }
-func (lb *LoadBalancer) getRoundRobinServer() LbServer {
-
-	server := lb.servers[lb.roundRobinCount%len(lb.servers)]
-	for !server.IsAlive() {
+func (lb *LoadBalancer) getRoundRobinServer() *LbServer {
+	totalServers := len(lb.servers)
+	for i := 0; i < totalServers; i++ {
+		server := lb.servers[lb.roundRobinCount%len(lb.servers)]
+		if server.alive {
+			lb.roundRobinCount++
+			return server
+		}
 		lb.roundRobinCount++
-		server = lb.servers[lb.roundRobinCount%len(lb.servers)]
 	}
-
-	lb.roundRobinCount++
-	return server
+	return lb.servers[lb.roundRobinCount%len(lb.servers)]
 }
 
 func (lb *LoadBalancer) ServeProxy(w http.ResponseWriter, r *http.Request) {
 	targetServer := lb.GetNextAvailableServer()
-	fmt.Printf("forwarding to %q\n", targetServer.Address())
+	log.Infof("forwarding to %q\n", targetServer.Address())
 	targetServer.Serve(w, r)
+}
+
+func (lb *LoadBalancer) HealthCheck(interval time.Duration) {
+  for _, server := range lb.servers {
+    go func(s *LbServer) {
+      ticker := time.NewTicker(interval)
+      defer ticker.Stop()
+      for  {
+        <-ticker.C
+        s.IsAlive()
+      }
+    }(server)
+  }
 }

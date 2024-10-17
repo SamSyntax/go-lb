@@ -2,13 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
 
@@ -22,22 +21,28 @@ type ExternalServerYaml struct {
 	Weight int    `yaml:"weight"`
 }
 
-func Loader(path string) []LbServer {
+func Loader(path string) []*LbServer {
 	ext := filepath.Ext(path)
 	switch ext {
 	case ".yaml":
 		res := ReadYaml(path)
+		for _, s := range res {
+			s.IsAlive()
+		}
 		return res
 	case ".json":
 		res := ReadJson(path)
+		for _, s := range res {
+			s.IsAlive()
+		}
 		return res
 	default:
-		fmt.Println("No file provided")
-		return []LbServer{}
+		log.Panic("No file provided")
+		return []*LbServer{}
 	}
 }
 
-func ReadJson(path string) []LbServer {
+func ReadJson(path string) []*LbServer {
 	file, err := os.Open(path)
 	if err != nil {
 		log.Fatalf("Failed to load servers from JSON file %v", err)
@@ -54,16 +59,16 @@ func ReadJson(path string) []LbServer {
 	if err != nil {
 		log.Fatalf("Failed to unmarshal JSON: %v", err)
 	}
-	res := make([]LbServer, 0, len(servers))
+	res := make([]*LbServer, 0, len(servers))
 	for k, s := range servers {
 		lbServer := NewLbServer(s.Addr, s.Weight)
 		lbServer.name = strconv.Itoa(k)
-    res = append(res, *lbServer)
+		res = append(res, lbServer)
 	}
 
 	return res
 }
-func ReadYaml(path string) []LbServer {
+func ReadYaml(path string) []*LbServer {
 	file, err := os.Open(path)
 	if err != nil {
 		log.Fatalf("Failed to load servers from JSON file %v", err)
@@ -80,11 +85,11 @@ func ReadYaml(path string) []LbServer {
 	if err != nil {
 		log.Fatalf("Failed to unmarshal YAML: %v", err)
 	}
-	res := make([]LbServer, 0, len(servers))
+	res := make([]*LbServer, 0, len(servers))
 	for k, s := range servers {
 		lbServer := NewLbServer(s.Addr, s.Weight)
 		lbServer.name = strconv.Itoa(k)
-    res = append(res, *lbServer)
+		res = append(res, lbServer)
 	}
 
 	return res
