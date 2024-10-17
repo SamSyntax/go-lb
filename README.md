@@ -96,7 +96,7 @@ forwarding to "https://google.com"
 ## Port flag
 We can pass <b>-srv-port</b> flag to specify port for local servers and <b>-port</b> flag to specify port for load balancer
 ```bash
-./lb -port 8000 -lb-port 7000
+./lb -srv-port 8000 -port 7000 
 ```
 
 ## Health check
