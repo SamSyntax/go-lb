@@ -18,6 +18,9 @@ This Go project implements a load balancer that supports two balancing methods: 
   - `local`: Spawns the specified amount of local servers.
   - `external`: Reads server addresses from an external file (provided via `-path` flag).
 - `-path`: Specifies the path to the external `.json` or `.yaml` configuration file (used with `-env external`).
+- `-healthCheck`: Runs health check on external servers provided within a configuration file (used with `-path`).
+- `-port`: Specifies port used to run load balancer service.
+- `-srv-port`: Specifies port used to run local servers for testing purposes.
 
 ### Example Usage
 
