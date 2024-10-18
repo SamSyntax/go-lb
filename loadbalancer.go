@@ -18,13 +18,14 @@ type ServerInterface interface {
 }
 
 type LbServer struct {
-	addr    string
-	proxy   *httputil.ReverseProxy
-	name    string
-	weight  int
-	current int
-	mu      sync.Mutex
-	alive   bool
+	addr    string                 // address of the server
+	proxy   *httputil.ReverseProxy // reverse porxy used to forward requests
+	name    string                 // name of the server
+	weight  int                    // weight used for weighted round robin
+	current int                    // current counter based on weight (if weight of the server is 3 - 3 requests will be sent to this server in this iteration)
+	mu      sync.Mutex             // mutex to safely modify instances
+	alive   bool                   // status of the server (wether it's online or not)
+	reqAmt  int                    // amount of requests send to the server
 }
 
 func (s *LbServer) Address() string {
@@ -37,17 +38,17 @@ func (s *LbServer) IsAlive() bool {
 	}
 	res, err := client.Get(s.addr)
 	if err != nil {
-		log.Warnf("Server %s - addr: %s is currently offline\n", s.name, s.addr)
+		log.WithFields(log.Fields{"[Status]": "offline"}).Printf("Server %s - addr: %s\n", s.name, s.addr)
 		s.alive = false
 		return false
 	}
 	if res.StatusCode != http.StatusOK {
-		log.Warnf("Server %s - addr: %s is currently offline\n", s.name, s.addr)
+		log.WithFields(log.Fields{"[Status]": "offline"}).Printf("Server %s - addr: %s\n", s.name, s.addr)
 		s.alive = false
 		return false
 	}
 	s.alive = true
-	log.Infof("Server %s - addr: %s is online\n", s.name, s.addr)
+	log.WithFields(log.Fields{"[Status]": "online"}).Printf("Server %s - addr: %s\n", s.name, s.addr)
 	return true
 }
 
@@ -94,14 +95,15 @@ func (lb *LoadBalancer) GetNextAvailableServer() LbServer {
 	}
 	return *lb.getRoundRobinServer()
 }
-func (lb *LoadBalancer) getWeightedServer() *LbServer {
 
+func (lb *LoadBalancer) getWeightedServer() *LbServer {
 	totalServers := len(lb.servers)
 	for i := 0; i < totalServers; i++ {
 		server := lb.servers[lb.roundRobinCount%totalServers]
 		if server.current < server.weight && server.alive {
 			server.mu.Lock()
 			server.current++
+			server.reqAmt++
 			server.mu.Unlock()
 			return server
 		}
@@ -111,12 +113,14 @@ func (lb *LoadBalancer) getWeightedServer() *LbServer {
 	lb.roundRobinCount++
 	return lb.servers[lb.roundRobinCount%totalServers]
 }
+
 func (lb *LoadBalancer) getRoundRobinServer() *LbServer {
 	totalServers := len(lb.servers)
 	for i := 0; i < totalServers; i++ {
 		server := lb.servers[lb.roundRobinCount%len(lb.servers)]
 		if server.alive {
 			lb.roundRobinCount++
+			server.reqAmt++
 			return server
 		}
 		lb.roundRobinCount++
@@ -131,14 +135,15 @@ func (lb *LoadBalancer) ServeProxy(w http.ResponseWriter, r *http.Request) {
 }
 
 func (lb *LoadBalancer) HealthCheck(interval time.Duration) {
-  for _, server := range lb.servers {
-    go func(s *LbServer) {
-      ticker := time.NewTicker(interval)
-      defer ticker.Stop()
-      for  {
-        <-ticker.C
-        s.IsAlive()
-      }
-    }(server)
-  }
+	for _, server := range lb.servers {
+		go func(s *LbServer) {
+			ticker := time.NewTicker(interval)
+			defer ticker.Stop()
+			for {
+				<-ticker.C
+				log.WithFields(log.Fields{"[ReqAmt]": s.reqAmt}).Infof("Amount of requestes forwarded to %s ", server.addr)
+				s.IsAlive()
+			}
+		}(server)
+	}
 }
