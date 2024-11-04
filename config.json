@@ -1,0 +1,22 @@
+{
+  "amount": 5,
+  "method": "rr",
+  "environment": "external",
+  "balancer_port": 7000,
+  "servers_port": 8000,
+  "health_check_interval": 3,
+  "servers": [
+    {
+      "address": "https://facebook.com",
+      "weight": 2
+    },
+    {
+      "address": "https://twitch.tv",
+      "weight": 1
+    },
+    {
+      "address": "https://google.com",
+      "weight": 3
+    }
+  ]
+}

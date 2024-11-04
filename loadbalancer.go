@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -71,14 +73,14 @@ func NewLbServer(addr string, weight int) *LbServer {
 }
 
 type LoadBalancer struct {
-	port            string
+	port            int
 	roundRobinCount int
 	servers         []*LbServer
 	weighted        bool
 	mu              sync.Mutex
 }
 
-func NewLoadBalancer(port string, servers []*LbServer, weighted bool) *LoadBalancer {
+func NewLoadBalancer(port int, servers []*LbServer, weighted bool) *LoadBalancer {
 	return &LoadBalancer{
 		port:            port,
 		roundRobinCount: 0,
@@ -128,9 +130,12 @@ func (lb *LoadBalancer) getRoundRobinServer() *LbServer {
 	return lb.servers[lb.roundRobinCount%len(lb.servers)]
 }
 
-func (lb *LoadBalancer) ServeProxy(w http.ResponseWriter, r *http.Request) {
+func (lb *LoadBalancer) ServeProxy(w http.ResponseWriter, r *http.Request, ctx context.Context) {
 	targetServer := lb.GetNextAvailableServer()
-	log.Infof("forwarding to %q\n", targetServer.Address())
+	msg := fmt.Sprintf("Forwarding to %s\n", targetServer.addr)
+	_, span := tracer.Start(ctx, msg)
+	defer span.End()
+	log.Info(msg)
 	targetServer.Serve(w, r)
 }
 
