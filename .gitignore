@@ -3,3 +3,4 @@ lb
 /bin
 application.log
 local.yaml
+*.env
